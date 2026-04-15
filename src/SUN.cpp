@@ -19,12 +19,15 @@
 #endif
 
 #include "SUN.h"
-#include "config/globals.h"
 #include "string.h"
 
 // Create global instance
 SUNClass SUN;
 SUNClass::Packet packet;
+
+constexpr const uint8_t SUNClass::NodeNumberPins[8];
+constexpr const char *SUNClass::ssid;
+constexpr const char *SUNClass::password;
 
 uint16_t SUNClass::getVoltageIndexer(uint8_t nodeNumber)
 {
@@ -62,8 +65,8 @@ void SUNClass::setupNode(uint8_t nodeNumber)
 
     WiFi.softAPdisconnect(true);
     WiFi.mode(WIFI_STA);
-    esp_wifi_set_channel(GLOBAL::DEFAULT_WIFI_CHANNEL, WIFI_SECOND_CHAN_NONE);
-    WiFi.begin(GLOBAL::ssid, GLOBAL::password);
+    esp_wifi_set_channel(SUNClass::DEFAULT_WIFI_CHANNEL, WIFI_SECOND_CHAN_NONE);
+    WiFi.begin(SUNClass::ssid, SUNClass::password);
     WiFi.hostname(SUN.getHostName(nodeNumber).c_str());
 
     if (!MDNS.begin(SUN.getHostName(nodeNumber).c_str()))
@@ -101,14 +104,14 @@ void SUNClass::setupNode(uint8_t nodeNumber)
     Serial.println(SUN.getHostName(nodeNumber));
 
     pinMode(SUN.getADCPin(nodeNumber), INPUT);
-    pinMode(GLOBAL::BUILT_IN_LED_PIN, OUTPUT);
-    digitalWrite(GLOBAL::BUILT_IN_LED_PIN, HIGH);
+    pinMode(BUILT_IN_LED_PIN, OUTPUT);
+    digitalWrite(BUILT_IN_LED_PIN, HIGH);
 
     // fill voltage buffer with initial values
     uint16_t currentVoltage = analogRead(SUN.getADCPin(nodeNumber));
     for (int i = 0; i < 256; i++)
     {
-        GLOBAL::voltageBuffer[i] = currentVoltage * SUN.getVoltageIndexer(nodeNumber) / 100;
+        voltageBuffer[i] = currentVoltage * SUN.getVoltageIndexer(nodeNumber) / 100;
     }
 
     if (esp_now_init() != ESP_OK)
@@ -152,17 +155,17 @@ uint8_t SUNClass::getADCPin(uint8_t nodeNumber)
 
 uint8_t SUNClass::getCharge(uint8_t nodeNumber)
 {
-    GLOBAL::voltageReadCounter++;
-    GLOBAL::voltageBuffer[GLOBAL::voltageReadCounter] = analogRead(SUN.getADCPin(nodeNumber)) * SUN.getVoltageIndexer(nodeNumber) / 100;
+    voltageReadCounter++;
+    voltageBuffer[voltageReadCounter] = analogRead(SUN.getADCPin(nodeNumber)) * SUN.getVoltageIndexer(nodeNumber) / 100;
 
     uint32_t total = 0;
     for (uint16_t i = 0; i <= 255; i++)
     {
-        total += GLOBAL::voltageBuffer[i];
+        total += voltageBuffer[i];
     }
-    GLOBAL::voltage = total / 256;
+    voltage = total / 256;
 
-    uint8_t charge = constrain(map(GLOBAL::voltage, SUN.getLowVoltage(nodeNumber), SUN.getHighVoltage(nodeNumber), 0, 100), 0, 100);
+    uint8_t charge = constrain(map(voltage, SUN.getLowVoltage(nodeNumber), SUN.getHighVoltage(nodeNumber), 0, 100), 0, 100);
 
     return charge;
 
@@ -223,22 +226,22 @@ void SUNClass::sendStatus(uint8_t nodeNumber)
     Packet packet{}; // ✅ zero-initialize everything
 
     // ===== HEADER =====
-    packet.type = 1;          // STATUS
-    packet.ttl = GLOBAL::TTL; // or whatever your logic is
+    packet.type = 1;  // STATUS
+    packet.ttl = TTL; // or whatever your logic is
     packet.node = nodeNumber;
 
     packet.globalTime = SUN.getGlobalTime();
-    packet.commandTimestamp = GLOBAL::startMillis;
+    packet.commandTimestamp = startMillis;
 
-    packet.voltage = GLOBAL::voltage;
-    packet.charge = GLOBAL::charge;
+    packet.voltage = voltage;
+    packet.charge = charge;
 
-    packet.command = GLOBAL::command;
-    packet.parameter = GLOBAL::parameter;
+    packet.command = command;
+    packet.parameter = parameter;
 
     // ===== COPY ARRAY =====
     memcpy(packet.constantCommands,
-           GLOBAL::constantCommands,
+           constantCommands,
            sizeof(packet.constantCommands));
 
     // ===== PAYLOAD (optional for now) =====
@@ -275,7 +278,7 @@ bool SUNClass::sendMessage(const uint8_t *payload, size_t payloadSize)
         esp_now_peer_info_t peerInfo = {};
         memcpy(peerInfo.peer_addr, broadcastMac, 6);
         // Keep channel in sync with current STA channel (important when WiFi is connected to AP).
-        peerInfo.channel = GLOBAL::DEFAULT_WIFI_CHANNEL;
+        peerInfo.channel = DEFAULT_WIFI_CHANNEL;
         peerInfo.ifidx = WIFI_IF_STA;
         peerInfo.encrypt = false;
 
@@ -321,10 +324,10 @@ void SUNClass::parseReceviedData(const uint8_t *mac_addr, const uint8_t *incomin
     // GLOBAL::charge = receivedPacket.charge;
     // memcpy(GLOBAL::constantCommands, receivedPacket.constantCommands, sizeof(GLOBAL::constantCommands));
 
-    if (GLOBAL::globalTimeOffset < receivedPacket.globalTime - millis())
+    if (globalTimeOffset < receivedPacket.globalTime - millis())
     {
-        GLOBAL::globalTimeOffset = (int32_t)receivedPacket.globalTime - (int32_t)millis();
-        Serial.printf("Time offset adjusted: %d ms\n", GLOBAL::globalTimeOffset);
+        globalTimeOffset = (int32_t)receivedPacket.globalTime - (int32_t)millis();
+        Serial.printf("Time offset adjusted: %d ms\n", globalTimeOffset);
     }
     Serial.printf(
         "ESP-NOW RX from %02X:%02X:%02X:%02X:%02X:%02X size=%u type=%u ttl=%u node=%u time=%lu local Global time=%lu\n",
@@ -334,5 +337,16 @@ void SUNClass::parseReceviedData(const uint8_t *mac_addr, const uint8_t *incomin
 
 uint32_t SUNClass::getGlobalTime()
 {
-    return millis() + GLOBAL::globalTimeOffset;
+    return millis() + globalTimeOffset;
+}
+
+uint8_t SUNClass::getNodeNumber()
+{
+    uint8_t node;
+    for (int i = 0; i < 8; i++)
+    {
+        pinMode(NodeNumberPins[i], INPUT_PULLUP);
+        node |= (uint8_t)((!digitalRead(NodeNumberPins[i])) << i);
+    }
+    return node;
 }
