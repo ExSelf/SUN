@@ -20,7 +20,7 @@ public:
     static constexpr const uint8_t STATUS_SEND_INTERVAL = 25;
     static constexpr const uint16_t TICK_INTERVAL = 500;
 
-    static constexpr const uint8_t DEFAULT_WIFI_CHANNEL = 14;
+    static constexpr const uint8_t DEFAULT_WIFI_CHANNEL = 13;
 
     static constexpr const uint8_t NodeNumberPins[8] = {39, 40, 37, 38, 18, 21, 16, 17};
 

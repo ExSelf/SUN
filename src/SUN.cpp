@@ -260,8 +260,15 @@ void SUNClass::sendStatus(uint8_t nodeNumber)
            constantCommands,
            sizeof(packet.constantCommands));
 
-    // ===== PAYLOAD (optional for now) =====
-    packet.payload_size = 0;
+    // ===== PAYLOAD: variable-length node name =====
+    String nodeName = SUN.getHostName(nodeNumber);
+    size_t nodeNameLen = nodeName.length();
+    if (nodeNameLen > sizeof(packet.payload))
+    {
+        nodeNameLen = sizeof(packet.payload);
+    }
+    packet.payload_size = static_cast<uint8_t>(nodeNameLen);
+    memcpy(packet.payload, nodeName.c_str(), nodeNameLen);
 
     if (SUN.sendMessage(reinterpret_cast<const uint8_t *>(&packet), sizeof(packet)))
     {
@@ -345,10 +352,17 @@ void SUNClass::parseReceviedData(const uint8_t *mac_addr, const uint8_t *incomin
         globalTimeOffset = (int32_t)receivedPacket.globalTime - (int32_t)millis();
         Serial.printf("Time offset adjusted: %d ms\n", globalTimeOffset);
     }
+    uint8_t rxPayloadSize = receivedPacket.payload_size;
+    if (rxPayloadSize > sizeof(receivedPacket.payload))
+    {
+        rxPayloadSize = sizeof(receivedPacket.payload);
+    }
+
     Serial.printf(
-        "ESP-NOW RX from %02X:%02X:%02X:%02X:%02X:%02X size=%u type=%u ttl=%u node=%u time=%lu local Global time=%lu\n",
+        "ESP-NOW RX from %02X:%02X:%02X:%02X:%02X:%02X size=%u type=%u ttl=%u node=%u time=%lu local Global time=%lu name=%.*s\n",
         mac_addr[0], mac_addr[1], mac_addr[2], mac_addr[3], mac_addr[4], mac_addr[5], (unsigned int)len,
-        receivedPacket.type, receivedPacket.ttl, receivedPacket.node, (unsigned long)receivedPacket.globalTime, (unsigned long)getGlobalTime());
+        receivedPacket.type, receivedPacket.ttl, receivedPacket.node, (unsigned long)receivedPacket.globalTime, (unsigned long)getGlobalTime(),
+        (int)rxPayloadSize, (const char *)receivedPacket.payload);
 }
 
 uint32_t SUNClass::getGlobalTime()
