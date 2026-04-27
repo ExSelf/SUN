@@ -50,17 +50,33 @@ void SUNClass::setupNode(uint8_t nodeNumber)
 {
     analogReadResolution(12);
 
-    if (nodeNumber > 10 && nodeNumber <= 20) // Origami
+    if (nodeNumber > 10) // Origami
     {
         Origami.setupNode(nodeNumber);
     }
-    else if (nodeNumber <= 30) // Solaris
+    else if (nodeNumber > 20) // Solaris
     {
         Solaris.setupNode(nodeNumber);
     }
-    else if (nodeNumber <= 40) // MoonFaced
+    else if (nodeNumber > 30) // MoonFaced
     {
         MoonFaced.setupNode(nodeNumber);
+    }
+    else if (nodeNumber > 40) // Snow
+    {
+        Snow.setupNode(nodeNumber);
+    }
+    else if (nodeNumber > 50 && nodeNumber < 60) // Cat
+    {
+        Cat.setupNode(nodeNumber);
+    }
+    else if (nodeNumber > 70) // SkyStranger
+    {
+        SkyStranger.setupNode(nodeNumber);
+    }
+    else if (nodeNumber == 201) // Animoll
+    {
+        Animoll.setupNode(nodeNumber);
     }
 
     WiFi.softAPdisconnect(true);

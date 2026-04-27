@@ -5,6 +5,10 @@
 #include "../src/NodeSpecific/Origami.h"
 #include "../src/NodeSpecific/Solaris.h"
 #include "../src/NodeSpecific/MoonFaced.h"
+#include "../src/NodeSpecific/Snow.h"
+#include "../src/NodeSpecific/Cat.h"
+#include "../src/NodeSpecific/SkyStranger.h"
+#include "../src/NodeSpecific/Animoll.h"
 
 class SUNClass
 {
@@ -20,8 +24,8 @@ public:
 
     static constexpr const uint8_t NodeNumberPins[8] = {39, 40, 37, 38, 18, 21, 16, 17};
 
-    static constexpr const char *ssid = "test";
-    static constexpr const char *password = "test";
+    static constexpr const char *ssid = "SvetlitsaNet";
+    static constexpr const char *password = "gggggggggg";
 
     // ===== VARIABLES =====
     uint16_t globalTime;
