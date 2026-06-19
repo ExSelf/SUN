@@ -51,6 +51,9 @@ public:
 
     uint32_t lastTick = 0;
 
+    bool wifiOTAEnabled = false;
+    uint8_t lastWiFiCommand = 0;
+
     typedef struct __attribute__((packed))
     {
         uint8_t type;
@@ -83,6 +86,7 @@ public:
     uint16_t getHighVoltage(uint8_t nodeNumber);
     void sendStatus(uint8_t nodeNumber);
     bool sendMessage(const uint8_t *payload, size_t payloadSize);
+    bool enableWiFiOTA(bool isShouldBeEnabled);
     void parseReceviedData(const uint8_t *mac_addr, const uint8_t *incomingData, int len);
     uint32_t getGlobalTime();
     uint8_t getNodeNumber();
