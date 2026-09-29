@@ -276,9 +276,9 @@ void SUNClass::sendStatus(uint8_t nodeNumber)
     Packet packet{}; // ✅ zero-initialize everything
 
     // ===== HEADER =====
-    packet.type = 1;  // STATUS
-    packet.ttl = TTL; // or whatever your logic is
+    packet.type = 2; // STATUS
     packet.node = nodeNumber;
+    packet.ttl = TTL;
 
     packet.globalTime = SUN.getGlobalTime();
     packet.commandTimestamp = startMillis;
@@ -293,9 +293,6 @@ void SUNClass::sendStatus(uint8_t nodeNumber)
     memcpy(packet.constantCommands,
            constantCommands,
            sizeof(packet.constantCommands));
-
-    // ===== PAYLOAD (optional for now) =====
-    packet.payload_size = 0;
 
     if (SUN.sendMessage(reinterpret_cast<const uint8_t *>(&packet), sizeof(packet)))
     {

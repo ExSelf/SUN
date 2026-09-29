@@ -53,24 +53,26 @@ public:
     typedef struct __attribute__((packed))
     {
         uint8_t type;
-        uint8_t ttl;
         uint8_t node;
+        uint8_t ttl;
 
         uint32_t globalTime;
         uint32_t commandTimestamp;
-
-        uint16_t voltage;
-        uint8_t charge;
 
         uint8_t command;
         uint8_t parameter;
 
         uint8_t constantCommands[12];
 
-        uint8_t payload_size;
-        uint8_t payload[71];
+        uint16_t voltage;
+        uint8_t charge;
+
+        uint8_t subnodes[64];
+        uint8_t reserved[158];
 
     } Packet;
+
+    static_assert(sizeof(Packet) == 250, "SPACE packet layout must be 250 bytes");
 
     uint16_t getVoltageIndexer(uint8_t nodeNumber);
     void setNodeCommand(uint8_t nodeNumber, uint8_t command, uint8_t parameter, uint8_t constantParameters[12]);
