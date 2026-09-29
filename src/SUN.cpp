@@ -49,33 +49,36 @@ void SUNClass::setupNode(uint8_t nodeNumber)
     this->nodeNumber = nodeNumber;
     analogReadResolution(12);
 
-    if (nodeNumber > 10) // Origami
+    if (nodeNumber != 255)
     {
-        Origami.setupNode(nodeNumber);
-    }
-    else if (nodeNumber > 20) // Solaris
-    {
-        Solaris.setupNode(nodeNumber);
-    }
-    else if (nodeNumber > 30) // MoonFaced
-    {
-        MoonFaced.setupNode(nodeNumber);
-    }
-    else if (nodeNumber > 40) // Snow
-    {
-        Snow.setupNode(nodeNumber);
-    }
-    else if (nodeNumber > 50 && nodeNumber < 60) // Cat
-    {
-        Cat.setupNode(nodeNumber);
-    }
-    else if (nodeNumber > 70) // SkyStranger
-    {
-        SkyStranger.setupNode(nodeNumber);
-    }
-    else if (nodeNumber == 201) // Animoll
-    {
-        Animoll.setupNode(nodeNumber);
+        if (nodeNumber > 10) // Origami
+        {
+            Origami.setupNode(nodeNumber);
+        }
+        else if (nodeNumber > 20) // Solaris
+        {
+            Solaris.setupNode(nodeNumber);
+        }
+        else if (nodeNumber > 30) // MoonFaced
+        {
+            MoonFaced.setupNode(nodeNumber);
+        }
+        else if (nodeNumber > 40) // Snow
+        {
+            Snow.setupNode(nodeNumber);
+        }
+        else if (nodeNumber > 50 && nodeNumber < 60) // Cat
+        {
+            Cat.setupNode(nodeNumber);
+        }
+        else if (nodeNumber > 70) // SkyStranger
+        {
+            SkyStranger.setupNode(nodeNumber);
+        }
+        else if (nodeNumber == 201) // Animoll
+        {
+            Animoll.setupNode(nodeNumber);
+        }
     }
 
     WiFi.softAPdisconnect(true);
@@ -166,7 +169,11 @@ bool SUNClass::enableWiFiOTA(bool isShouldBeEnabled)
 
 String SUNClass::getHostName(uint8_t nodeNumber)
 {
-    if (nodeNumber >= 10 && nodeNumber < 20)
+    if (nodeNumber == 255)
+    {
+        return "Debug";
+    }
+    else if (nodeNumber >= 10 && nodeNumber < 20)
     {
         return "Origami_" + String(nodeNumber);
     }
@@ -396,11 +403,11 @@ uint32_t SUNClass::getGlobalTime()
 
 uint8_t SUNClass::getNodeNumber()
 {
-    uint8_t node;
+    uint8_t node = 0;
     for (int i = 0; i < 8; i++)
     {
         pinMode(NodeNumberPins[i], INPUT_PULLUP);
         node |= (uint8_t)((!digitalRead(NodeNumberPins[i])) << i);
     }
-    return node;
+    return node == 0 ? 255 : node;
 }
