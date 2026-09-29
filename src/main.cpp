@@ -65,4 +65,11 @@ void loop()
 
     // Serial.printf("Tick\n");
   }
+
+  uint32_t currentGlobalTime = SUN.getGlobalTime();
+  if (currentGlobalTime - SUN.lastDebugTick >= SUNClass::DEBUG_TICK_INTERVAL)
+  {
+    SUN.lastDebugTick = currentGlobalTime;
+    SUN.debugOutput();
+  }
 }

@@ -347,8 +347,44 @@ bool SUNClass::sendMessage(const uint8_t *payload, size_t payloadSize)
     return true;
 }
 
+void SUNClass::debugOutput(const uint8_t *mac_addr, const uint8_t *incomingData, int len)
+{
+    if (!isDebugEnabled)
+    {
+        return;
+    }
+
+    if (mac_addr == nullptr && incomingData == nullptr && len == 0)
+    {
+        Serial.printf("Debug tick: global time=%lu ms\n", (unsigned long)getGlobalTime());
+        return;
+    }
+
+    if (mac_addr != nullptr)
+    {
+        Serial.printf("ESP-NOW RX from %02X:%02X:%02X:%02X:%02X:%02X size=%d",
+                      mac_addr[0], mac_addr[1], mac_addr[2], mac_addr[3], mac_addr[4], mac_addr[5], len);
+    }
+    else
+    {
+        Serial.printf("ESP-NOW RX size=%d", len);
+    }
+
+    if (incomingData != nullptr && len >= 3)
+    {
+        Serial.printf(" type=%u node=%u ttl=%u", incomingData[0], incomingData[1], incomingData[2]);
+        if (len >= 13)
+        {
+            Serial.printf(" command=%u parameter=%u", incomingData[11], incomingData[12]);
+        }
+    }
+    Serial.println();
+}
+
 void SUNClass::parseReceviedData(const uint8_t *mac_addr, const uint8_t *incomingData, int len)
 {
+    debugOutput(mac_addr, incomingData, len);
+
     if (mac_addr == nullptr || incomingData == nullptr || len <= 0)
     {
         return;
@@ -387,10 +423,6 @@ void SUNClass::parseReceviedData(const uint8_t *mac_addr, const uint8_t *incomin
         Serial.printf("WiFi/OTA %s via command: %u\n", shouldEnable ? "enabled" : "disabled", receivedPacket.constantCommands[0]);
     }
 
-    Serial.printf(
-        "ESP-NOW RX from %02X:%02X:%02X:%02X:%02X:%02X size=%u type=%u ttl=%u node=%u time=%lu local Global time=%lu\n",
-        mac_addr[0], mac_addr[1], mac_addr[2], mac_addr[3], mac_addr[4], mac_addr[5], (unsigned int)len,
-        receivedPacket.type, receivedPacket.ttl, receivedPacket.node, (unsigned long)receivedPacket.globalTime, (unsigned long)getGlobalTime());
 }
 
 uint32_t SUNClass::getGlobalTime()
