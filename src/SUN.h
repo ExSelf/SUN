@@ -1,6 +1,7 @@
 #pragma once
 #include <Arduino.h>
 #include <stdint.h>
+#include "secrets.h"
 
 #include "../src/NodeSpecific/Origami.h"
 #include "../src/NodeSpecific/Solaris.h"
@@ -20,12 +21,7 @@ public:
     static constexpr const uint8_t STATUS_SEND_INTERVAL = 25;
     static constexpr const uint16_t TICK_INTERVAL = 500;
 
-    static constexpr const uint8_t DEFAULT_WIFI_CHANNEL = 13;
-
     static constexpr const uint8_t NodeNumberPins[8] = {39, 40, 37, 38, 18, 21, 16, 17};
-
-    static constexpr const char *ssid = "SvetlitsaNet";
-    static constexpr const char *password = "gggggggggg";
 
     // ===== VARIABLES =====
     uint16_t globalTime;

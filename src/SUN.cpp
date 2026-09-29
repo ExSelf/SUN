@@ -26,8 +26,6 @@ SUNClass SUN;
 SUNClass::Packet packet;
 
 constexpr const uint8_t SUNClass::NodeNumberPins[8];
-constexpr const char *SUNClass::ssid;
-constexpr const char *SUNClass::password;
 
 uint16_t SUNClass::getVoltageIndexer(uint8_t nodeNumber)
 {
@@ -82,7 +80,7 @@ void SUNClass::setupNode(uint8_t nodeNumber)
 
     WiFi.softAPdisconnect(true);
     WiFi.mode(WIFI_STA);
-    esp_wifi_set_channel(SUNClass::DEFAULT_WIFI_CHANNEL, WIFI_SECOND_CHAN_NONE);
+    esp_wifi_set_channel(DEFAULT_WIFI_CHANNEL, WIFI_SECOND_CHAN_NONE);
     WiFi.hostname(SUN.getHostName(nodeNumber).c_str());
 
     Serial.print("Device is being configured as number ");
@@ -118,8 +116,8 @@ bool SUNClass::enableWiFiOTA(bool isShouldBeEnabled)
         }
 
         WiFi.mode(WIFI_STA);
-        esp_wifi_set_channel(SUNClass::DEFAULT_WIFI_CHANNEL, WIFI_SECOND_CHAN_NONE);
-        WiFi.begin(SUNClass::ssid, SUNClass::password);
+        esp_wifi_set_channel(DEFAULT_WIFI_CHANNEL, WIFI_SECOND_CHAN_NONE);
+        WiFi.begin(WIFI_SSID, WIFI_PASSWORD);
         WiFi.hostname(getHostName(nodeNumber).c_str());
 
         if (!MDNS.begin(getHostName(nodeNumber).c_str()))
