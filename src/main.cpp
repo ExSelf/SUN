@@ -60,7 +60,7 @@ void loop()
   if (SUN.getGlobalTime() - SUN.lastTick > SUNClass::TICK_INTERVAL)
   {
     SUN.lastTick = SUN.getGlobalTime();
-    uint32_t phase = (SUN.getGlobalTime() / SUNClass::TICK_INTERVAL) & 1;
+    bool phase = (SUN.getGlobalTime() / SUNClass::TICK_INTERVAL) & 1;
     analogWrite(SUN.BUILT_IN_LED_PIN, phase ? 4 : 0);
 
     // Serial.printf("Tick\n");
