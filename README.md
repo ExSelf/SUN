@@ -11,7 +11,7 @@ Create `src/secrets.h` with your local Wi-Fi settings before building:
 
 #define WIFI_SSID "YOUR_WIFI_SSID"
 #define WIFI_PASSWORD "YOUR_WIFI_PASSWORD"
-#define DEFAULT_WIFI_CHANNEL 13
+#define DEFAULT_WIFI_CHANNEL "YOUR_CHANNEL"
 ```
 
 The real `secrets.h` file and `pio_build.log` are excluded from Git; do not
