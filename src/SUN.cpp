@@ -409,7 +409,7 @@ void SUNClass::parseReceviedData(const uint8_t *mac_addr, const uint8_t *incomin
 
     if (globalTimeOffset < receivedPacket.globalTime - millis())
     {
-        globalTimeOffset = (int32_t)receivedPacket.globalTime - (int32_t)millis();
+        globalTimeOffset = receivedPacket.globalTime - millis();
         Serial.printf("Time offset adjusted: %d ms\n", globalTimeOffset);
     }
 
