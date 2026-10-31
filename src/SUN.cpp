@@ -400,12 +400,11 @@ void SUNClass::parseReceviedData(const uint8_t *mac_addr, const uint8_t *incomin
     memcpy(&receivedPacket, incomingData, sizeof(Packet));
 
     // Read and apply fields from received packet.
-    // GLOBAL::TTL = receivedPacket.ttl;
-    // GLOBAL::command = receivedPacket.command;
-    // GLOBAL::parameter = receivedPacket.parameter;
-    // GLOBAL::voltage = receivedPacket.voltage;
-    // GLOBAL::charge = receivedPacket.charge;
-    // memcpy(GLOBAL::constantCommands, receivedPacket.constantCommands, sizeof(GLOBAL::constantCommands));
+    TTL = receivedPacket.ttl;
+    startMillis = receivedPacket.commandTimestamp;
+    command = receivedPacket.command;
+    parameter = receivedPacket.parameter;
+    memcpy(constantCommands, receivedPacket.constantCommands, sizeof(constantCommands));
 
     if (globalTimeOffset < receivedPacket.globalTime - millis())
     {
