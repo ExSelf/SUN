@@ -29,6 +29,9 @@ public:
     uint8_t getOuterStripPixelsQuantity(uint8_t nodeNumber);
     void setupNode(uint8_t nodeNumber);
     void executeCommand(uint8_t nodeNumber);
+
+private:
+    void
 };
 
 extern class SolarisClass Solaris;
