@@ -94,6 +94,7 @@ public:
     void checkWiFiConnection();
     void debugOutput(const uint8_t *mac_addr = nullptr, const uint8_t *incomingData = nullptr, int len = 0);
     void parseReceviedData(const uint8_t *mac_addr, const uint8_t *incomingData, int len);
+    void executeCommand(uint8_t nodeNumber);
     uint32_t getGlobalTime();
     uint8_t getNodeNumber();
 };

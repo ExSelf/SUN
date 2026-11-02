@@ -31,8 +31,16 @@ uint16_t SUNClass::getVoltageIndexer(uint8_t nodeNumber)
 {
     switch (nodeNumber)
     {
-    case 12:
-        return 730;
+    case 21:
+        return 188;
+    case 22:
+        return 188;
+    case 23:
+        return 188;
+    case 24:
+        return 188;
+    case 25:
+        return 188;
 
     default:
         return 0;
@@ -47,7 +55,7 @@ void SUNClass::setNodeCommand(uint8_t nodeNumber, uint8_t command, uint8_t param
 void SUNClass::setupNode(uint8_t nodeNumber)
 {
     this->nodeNumber = nodeNumber;
-    analogReadResolution(12);
+    // analogReadResolution(12);
 
     if (nodeNumber != 255)
     {
@@ -479,4 +487,41 @@ uint8_t SUNClass::getNodeNumber()
         node |= (uint8_t)((!digitalRead(NodeNumberPins[i])) << i);
     }
     return node == 0 ? 255 : node;
+}
+
+void SUNClass::executeCommand(uint8_t nodeNumber)
+{
+    if (nodeNumber == 255)
+    {
+        Serial.printf("No specific command execution for node %d\n", nodeNumber);
+        break;
+    }
+    else if (nodeNumber >= 10 && nodeNumber < 20)
+    {
+        Origami.executeCommand(nodeNumber);
+    }
+    else if (nodeNumber >= 20 && nodeNumber < 30)
+    {
+        Solaris.executeCommand(nodeNumber);
+    }
+    else if (nodeNumber >= 30 && nodeNumber < 40)
+    {
+        MoonFaced.executeCommand(nodeNumber);
+    }
+    else if (nodeNumber >= 40 && nodeNumber < 50)
+    {
+        Snow.executeCommand(nodeNumber);
+    }
+    else if (nodeNumber >= 50 && nodeNumber < 60)
+    {
+        Cat.executeCommand(nodeNumber);
+    }
+    else if (nodeNumber >= 70)
+    {
+        SkyStranger.executeCommand(nodeNumber);
+    }
+    else if (nodeNumber == 201)
+    {
+        Animoll.executeCommand(nodeNumber);
+    }
 }

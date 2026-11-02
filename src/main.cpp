@@ -73,4 +73,6 @@ void loop()
     SUN.lastDebugTick = currentGlobalTime;
     SUN.debugOutput();
   }
+
+  SUN.executeCommand(SUN.nodeNumber);
 }

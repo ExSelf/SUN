@@ -11,6 +11,8 @@ namespace SOLARIS
     static constexpr uint8_t MIDDLE_PWM_PIN = 2;
     static constexpr uint8_t OUTER_PWM_PIN = 4;
     static constexpr uint8_t EXTRA_PWM_PIN = 6;
+
+    static constexpr uint8_t interval = 25;
 }
 
 class SolarisClass
@@ -26,6 +28,7 @@ public:
     uint8_t getMiddleStripPixelsQuantity(uint8_t nodeNumber);
     uint8_t getOuterStripPixelsQuantity(uint8_t nodeNumber);
     void setupNode(uint8_t nodeNumber);
+    void executeCommand(uint8_t nodeNumber);
 };
 
 extern class SolarisClass Solaris;
