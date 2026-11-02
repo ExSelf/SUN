@@ -11,8 +11,13 @@ Create `src/secrets.h` with your local Wi-Fi settings before building:
 
 #define WIFI_SSID "YOUR_WIFI_SSID"
 #define WIFI_PASSWORD "YOUR_WIFI_PASSWORD"
-#define DEFAULT_WIFI_CHANNEL "YOUR_CHANNEL"
+#define DEFAULT_WIFI_CHANNEL "YOUR_WIFI_CHANNEL"
 ```
 
 The real `secrets.h` file and `pio_build.log` are excluded from Git; do not
 commit credentials or build logs.
+
+The node connects to the configured Wi-Fi network during startup and retries
+every 30 seconds if disconnected. Set `DEFAULT_WIFI_CHANNEL` to the access
+point's fixed 2.4 GHz channel, and use that same channel for every ESP-NOW
+peer. OTA becomes available after Wi-Fi connects.

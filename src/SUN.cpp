@@ -85,6 +85,7 @@ void SUNClass::setupNode(uint8_t nodeNumber)
     WiFi.mode(WIFI_STA);
     esp_wifi_set_channel(DEFAULT_WIFI_CHANNEL, WIFI_SECOND_CHAN_NONE);
     WiFi.hostname(SUN.getHostName(nodeNumber).c_str());
+    enableWiFiOTA(true);
 
     Serial.print("Device is being configured as number ");
     Serial.print(String(nodeNumber));
@@ -120,34 +121,14 @@ bool SUNClass::enableWiFiOTA(bool isShouldBeEnabled)
 
         WiFi.mode(WIFI_STA);
         esp_wifi_set_channel(DEFAULT_WIFI_CHANNEL, WIFI_SECOND_CHAN_NONE);
-        WiFi.begin(WIFI_SSID, WIFI_PASSWORD);
         WiFi.hostname(getHostName(nodeNumber).c_str());
 
-        if (!MDNS.begin(getHostName(nodeNumber).c_str()))
-        {
-            Serial.println("Error starting mDNS");
-        }
-        else
-        {
-            Serial.println("mDNS started");
-        }
-
-        ArduinoOTA.setHostname(getHostName(nodeNumber).c_str());
-        ArduinoOTA.onStart([]()
-                           { Serial.println("OTA Start"); });
-        ArduinoOTA.onEnd([]()
-                         { Serial.println("\nOTA End"); });
-        ArduinoOTA.onProgress([](unsigned int progress, unsigned int total)
-                              { Serial.printf("Progress: %u%%\r", (progress * 100) / total); });
-        ArduinoOTA.onError([](ota_error_t error)
-                           { Serial.printf("Error[%u]\n", error); });
-        ArduinoOTA.begin();
-
-        Serial.println();
-        Serial.print("Connected. IP: ");
-        Serial.println(WiFi.localIP());
-
         wifiOTAEnabled = true;
+        wifiServicesStarted = false;
+        WiFi.setAutoReconnect(true);
+        lastWiFiCheck = millis();
+        Serial.printf("Connecting to WiFi SSID \"%s\" on channel %u\n", WIFI_SSID, DEFAULT_WIFI_CHANNEL);
+        WiFi.begin(WIFI_SSID, WIFI_PASSWORD, DEFAULT_WIFI_CHANNEL);
         return true;
     }
     else
@@ -157,14 +138,74 @@ bool SUNClass::enableWiFiOTA(bool isShouldBeEnabled)
             return true; // Already disabled
         }
 
+        if (wifiServicesStarted)
+        {
+            MDNS.end();
+            ArduinoOTA.end();
+            wifiServicesStarted = false;
+        }
         WiFi.disconnect(true); // true = turn off WiFi radio
-        MDNS.end();
-        ArduinoOTA.end();
 
         Serial.println("WiFi/OTA disabled");
         wifiOTAEnabled = false;
         return true;
     }
+}
+
+void SUNClass::checkWiFiConnection()
+{
+    if (!wifiOTAEnabled)
+    {
+        return;
+    }
+
+    if (WiFi.status() == WL_CONNECTED)
+    {
+        if (!wifiServicesStarted)
+        {
+            if (!MDNS.begin(getHostName(nodeNumber).c_str()))
+            {
+                Serial.println("Error starting mDNS");
+            }
+            else
+            {
+                Serial.println("mDNS started");
+            }
+
+            ArduinoOTA.setHostname(getHostName(nodeNumber).c_str());
+            ArduinoOTA.onStart([]()
+                               { Serial.println("OTA Start"); });
+            ArduinoOTA.onEnd([]()
+                             { Serial.println("\nOTA End"); });
+            ArduinoOTA.onProgress([](unsigned int progress, unsigned int total)
+                                  { Serial.printf("Progress: %u%%\r", (progress * 100) / total); });
+            ArduinoOTA.onError([](ota_error_t error)
+                               { Serial.printf("Error[%u]\n", error); });
+            ArduinoOTA.begin();
+            wifiServicesStarted = true;
+
+            Serial.print("Connected. IP: ");
+            Serial.println(WiFi.localIP());
+        }
+        return;
+    }
+
+    if (wifiServicesStarted)
+    {
+        MDNS.end();
+        ArduinoOTA.end();
+        wifiServicesStarted = false;
+        Serial.println("WiFi disconnected; waiting to reconnect");
+    }
+
+    if (millis() - lastWiFiCheck < WIFI_CHECK_INTERVAL)
+    {
+        return;
+    }
+    lastWiFiCheck = millis();
+
+    Serial.printf("WiFi disconnected; retrying SSID \"%s\" on channel %u\n", WIFI_SSID, DEFAULT_WIFI_CHANNEL);
+    WiFi.begin(WIFI_SSID, WIFI_PASSWORD, DEFAULT_WIFI_CHANNEL);
 }
 
 String SUNClass::getHostName(uint8_t nodeNumber)

@@ -43,6 +43,7 @@ void setup()
 
 void loop()
 {
+  SUN.checkWiFiConnection();
   ArduinoOTA.handle();
 
   if (millis() - SUN.lastCheckVoltage > SUNClass::VOLTAGE_CHECK_INTERVAL)

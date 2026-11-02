@@ -22,6 +22,7 @@ public:
     static constexpr const uint8_t STATUS_SEND_INTERVAL = 25;
     static constexpr const uint16_t TICK_INTERVAL = 500;
     static constexpr const uint32_t DEBUG_TICK_INTERVAL = 5000;
+    static constexpr const uint32_t WIFI_CHECK_INTERVAL = 30000;
 
     static constexpr const uint8_t NodeNumberPins[8] = {39, 40, 37, 38, 18, 21, 16, 17};
 
@@ -51,7 +52,9 @@ public:
     uint32_t lastDebugTick = 0;
 
     bool wifiOTAEnabled = false;
+    bool wifiServicesStarted = false;
     uint8_t lastWiFiCommand = 0;
+    uint32_t lastWiFiCheck = 0;
 
     typedef struct __attribute__((packed))
     {
@@ -88,6 +91,7 @@ public:
     void sendStatus(uint8_t nodeNumber);
     bool sendMessage(const uint8_t *payload, size_t payloadSize);
     bool enableWiFiOTA(bool isShouldBeEnabled);
+    void checkWiFiConnection();
     void debugOutput(const uint8_t *mac_addr = nullptr, const uint8_t *incomingData = nullptr, int len = 0);
     void parseReceviedData(const uint8_t *mac_addr, const uint8_t *incomingData, int len);
     uint32_t getGlobalTime();
