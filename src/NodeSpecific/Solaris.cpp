@@ -1,6 +1,7 @@
 #include <Arduino.h>
+#include <math.h>
 #include "Solaris.h"
-
+#include "../SUN.h"
 
 uint8_t SolarisClass::getInnerDataPin(uint8_t nodeNumber)
 {
@@ -170,346 +171,381 @@ uint8_t SolarisClass::getOuterStripPixelsQuantity(uint8_t nodeNumber)
   }
 }
 
+uint8_t SolarisClass::getExtraStripPixelsQuantity(uint8_t nodeNumber)
+{
+  switch (nodeNumber)
+  {
+  default:
+    return 10;
+  }
+}
+
 void SolarisClass::setupNode(uint8_t nodeNumber)
 {
   pinMode(SOLARIS::INNER_PWM_PIN, OUTPUT);
   pinMode(SOLARIS::MIDDLE_PWM_PIN, OUTPUT);
   pinMode(SOLARIS::OUTER_PWM_PIN, OUTPUT);
   pinMode(SOLARIS::EXTRA_PWM_PIN, OUTPUT);
+
+  const uint8_t innerPin = getInnerDataPin(nodeNumber);
+  const uint8_t middlePin = getMiddleDataPin(nodeNumber);
+  const uint8_t outerPin = getOuterDataPin(nodeNumber);
+  const uint8_t extraPin = getExtraDataPin(nodeNumber);
+
+  const uint8_t innerCount = getInnerStripPixelsQuantity(nodeNumber);
+  const uint8_t middleCount = getMiddleStripPixelsQuantity(nodeNumber);
+  const uint8_t outerCount = getOuterStripPixelsQuantity(nodeNumber);
+  const uint8_t extraCount = getExtraStripPixelsQuantity(nodeNumber);
+
+  if (!registerStrip(innerStrip, innerCount, innerPin) ||
+      !registerStrip(middleStrip, middleCount, middlePin) ||
+      !registerStrip(outerStrip, outerCount, outerPin) ||
+      !registerStrip(extraStrip, extraCount, extraPin))
+  {
+    Serial.printf("Solaris node %u has an unsupported LED strip configuration\n", nodeNumber);
+    return;
+  }
+
+  FastLED.clear(true);
 }
 
 void SolarisClass::executeCommand(uint8_t nodeNumber)
 {
-  switch (SUN.command) {
+  bright = constrain(map(SUN.charge, 0, SOLARIS::SAFE_CHARGE,
+                         SOLARIS::MIN_BRIGHT, SOLARIS::MAX_BRIGHT),
+                     SOLARIS::MIN_BRIGHT, SOLARIS::MAX_BRIGHT);
 
-    /////////////////////////////// MIDI ///////////////////////////////
-
-    // OFF
-    case 12:
-      OnOff(false);
-      break;
-
-    // ON
-    case 13:
-      OnOff(true);
-      break;
-
-    // Strobe
-    case 14:
-      Strobe(interval, true);
-      break;
-
-    // Cross-Fade
-    case 15:
-      CrossFade(sinInterval, true);
-      break;
-
-    // 2 Breathes
-    case 16:
-      Breathe(breatheint1, breatheint2);
-      break;
-
-    // 1 breathe
-    case 17:
-      BreatheSingle(breatheint1, breatheint2);
-      break;
-
-    // Breathe (parameter based)
-    case 18:
-      BreatheSingle(breatheint1, 40 * SUN.parameter);
-      break;
-
-    // Strobe (parameter based)
-    case 19:
-      Strobe(SUN.parameter, true);
-      break;
-
-    // FadeOut (parameter based)
-    case 20:
-      FadeParameter(255, 0, 40 * SUN.parameter);
-      break;
-
-    // FadeIn (parameter based)
-    case 21:
-      FadeParameter(0, 255, 40 * SUN.parameter);
-      break;
-
-    // Cross-Fade (parameter based)
-    case 22:
-      CrossFade(40 * SUN.parameter, true);
-      break;
-
-    // Complicated breathe (parameter based)
-    case 23:
-      BreatheHard(breatheint1, constant_commands[0]);
-      break;
-
-    // Expanding Strobe (parameter based)
-    case 24:
-      FadeToStrobe(100 * SUN.parameter, constant_commands[0] * 10);
-      break;
-
-    // Accelerating Cross-Fade
-    case 25:
-      VariableCrossFade(50 * SUN.parameter, constant_commands[0]);
-      break;
-
-    // Brightness (parameter based)
-    case 26:
-      {
-        byte b = map(SUN.parameter, 1, 127, 0, 255);
-        Brightness(b);
-        break;
-      }
-
-    // Fade from 0 to 32 (parameter based)
-    case 27:
-      FadeParameter(0, 32, 40 * SUN.parameter);
-      break;
-
-    // Fade from 255 to 32 (parameter based)
-    case 28:
-      FadeParameter(255, 32, 40 * SUN.parameter);
-      break;
-
-    // Fade from 32 to 0 (parameter based)
-    case 29:
-      FadeParameter(32, 0, 40 * SUN.parameter);
-      break;
-
-    // Fade from 32 to 255 (parameter based)
-    case 30:
-      FadeParameter(32, 255, 40 * SUN.parameter);
-      break;
-
-    case 31:
-      FadeParameter(4 * (SUN.parameter - 48), 1, 250);
-      break;
-
-    // Fade from 32 to 0 (parameter based)
-    case 32:
-      FadeParameter(6, 0, 40 * SUN.parameter);
-      break;
-
-    case 40:
-      analogWrite(SOLARIS::EXTRA_PWM_PIN, SUN.parameter * 2);
-      break;
-
-    default:
-      Strobe(interval, true);
-      break;
+  switch (SUN.command)
+  {
+  case 12:
+    onOff(false);
+    break;
+  case 13:
+    onOff(true);
+    break;
+  case 14:
+    strobe(SOLARIS::INTERVAL, true);
+    break;
+  case 15:
+    crossFade(SOLARIS::CROSS_FADE_INTERVAL, true);
+    break;
+  case 16:
+    breathe(SOLARIS::BREATHE_INTERVAL_1, SOLARIS::BREATHE_INTERVAL_2);
+    break;
+  case 17:
+    breatheSingle(SOLARIS::BREATHE_INTERVAL_1, SOLARIS::BREATHE_INTERVAL_2);
+    break;
+  case 18:
+    breatheSingle(SOLARIS::BREATHE_INTERVAL_1, 40 * SUN.parameter);
+    break;
+  case 19:
+    strobe(SUN.parameter, true);
+    break;
+  case 20:
+    fadeParameter(255, 0, 40 * SUN.parameter);
+    break;
+  case 21:
+    fadeParameter(0, 255, 40 * SUN.parameter);
+    break;
+  case 22:
+    crossFade(40 * SUN.parameter, true);
+    break;
+  case 23:
+    breatheHard(SOLARIS::BREATHE_INTERVAL_1, SUN.constantCommands[0]);
+    break;
+  case 24:
+    fadeToStrobe(100 * SUN.parameter, SUN.constantCommands[0] * 10);
+    break;
+  case 25:
+    variableCrossFade(50 * SUN.parameter, SUN.constantCommands[0]);
+    break;
+  case 26:
+  {
+    const uint8_t level = map(SUN.parameter, 1, 127, 0, 255);
+    setBrightness(level);
+    break;
+  }
+  case 27:
+    fadeParameter(0, 32, 40 * SUN.parameter);
+    break;
+  case 28:
+    fadeParameter(255, 32, 40 * SUN.parameter);
+    break;
+  case 29:
+    fadeParameter(32, 0, 40 * SUN.parameter);
+    break;
+  case 30:
+    fadeParameter(32, 255, 40 * SUN.parameter);
+    break;
+  case 31:
+    fadeParameter(static_cast<uint8_t>(4 * (static_cast<int>(SUN.parameter) - 48)), 1, 250);
+    break;
+  case 32:
+    fadeParameter(6, 0, 40 * SUN.parameter);
+    break;
+  case 40:
+    analogWrite(SOLARIS::EXTRA_PWM_PIN, SUN.parameter * 2);
+    break;
+  default:
+    strobe(SOLARIS::INTERVAL, true);
+    break;
   }
 
-  inner.show();
-  middle.show();
-  outer.show();
-
+  FastLED.show();
 }
 
-void Strobe(int i, boolean state) {
-  if (((mil + mesh_millis_offset - start_millis) % (2 * i) > i) && state) {
-    ledState = true;
-  } else {
-    ledState = false;
+uint32_t SolarisClass::elapsedSinceCommand() const
+{
+  return SUN.getGlobalTime() - SUN.startMillis;
+}
+
+bool SolarisClass::registerStrip(CRGB *pixels, uint16_t count, uint8_t dataPin)
+{
+  if (pixels == nullptr || count == 0)
+  {
+    return false;
   }
 
-  analogWrite(INNER_PWM_PIN, ledState * bright);
-  analogWrite(MIDDLE_PWM_PIN, ledState * bright);
-  analogWrite(OUTER_PWM_PIN, ledState * bright);
-  analogWrite(HANDS_PWM_PIN, HandsValue(ledState * bright * HANDS_MAX_BRIGHT / 255));
-}
-
-void CrossFade(int sinInterval, boolean state) {
-  if (state) {
-    byte bright1 = 128 - 127 * cos(2 * PI / sinInterval * (mil + mesh_millis_offset - start_millis));
-    byte bright2 = 128 - 127 * cos(2 * PI / sinInterval * ((mil + mesh_millis_offset - start_millis) + (sinInterval / 3)));
-    byte bright3 = 128 - 127 * cos(2 * PI / sinInterval * ((mil + mesh_millis_offset - start_millis) + (2 * sinInterval / 3)));
-
-    if (debug) Serial.println(bright1);
-
-    analogWrite(INNER_PWM_PIN, bright1 * bright / 255);
-    pixelStripWrite(inner, bright1 * bright / 255);
-
-    analogWrite(MIDDLE_PWM_PIN, bright2 * bright / 255);
-    pixelStripWrite(middle, bright2 * bright / 255);
-
-    analogWrite(OUTER_PWM_PIN, bright3 * bright / 255);
-    pixelStripWrite(outer, bright3 * bright / 255);
-
-    analogWrite(HANDS_PWM_PIN, HandsValue(HANDS_MAX_BRIGHT * bright / 255));
-
-  } else {
-    analogWrite(INNER_PWM_PIN, 0);
-    analogWrite(MIDDLE_PWM_PIN, 0);
-    analogWrite(OUTER_PWM_PIN, 0);
-    analogWrite(HANDS_PWM_PIN, HandsValue(0));
+  switch (dataPin)
+  {
+  case 33:
+    FastLED.addLeds<WS2812B, 33, GRB>(pixels, count);
+    return true;
+  case 34:
+    FastLED.addLeds<WS2812B, 34, GRB>(pixels, count);
+    return true;
+  case 35:
+    FastLED.addLeds<WS2812B, 35, GRB>(pixels, count);
+    return true;
+  case 36:
+    FastLED.addLeds<WS2812B, 36, GRB>(pixels, count);
+    return true;
+  default:
+    return false;
   }
 }
 
+void SolarisClass::writeStrip(CRGB *pixels, uint16_t count, uint8_t brightness)
+{
+  fill_solid(pixels, count, CRGB(brightness, brightness, brightness));
+}
 
+void SolarisClass::strobe(uint32_t interval, bool state)
+{
+  interval = max(interval, 1U);
+  const bool isOn = state && (elapsedSinceCommand() % (2 * interval) > interval);
+  const uint8_t output = isOn ? bright : 0;
 
-void VariableCrossFade(int t, unsigned long interval) {
-  int p;
-  if (start_millis + t > (mil + mesh_millis_offset)) {
-    p = interval - interval * (mil + mesh_millis_offset - start_millis) / t;
-  } else {
-    p = 1;
+  analogWrite(SOLARIS::INNER_PWM_PIN, output);
+  analogWrite(SOLARIS::MIDDLE_PWM_PIN, output);
+  analogWrite(SOLARIS::OUTER_PWM_PIN, output);
+  analogWrite(SOLARIS::EXTRA_PWM_PIN, handsValue(output * SOLARIS::HANDS_MAX_BRIGHT / 255));
+
+  writeStrip(innerStrip, innerCount, output);
+  writeStrip(middleStrip, middleCount, output);
+  writeStrip(outerStrip, outerCount, output);
+}
+
+void SolarisClass::crossFade(uint32_t duration, bool state)
+{
+  if (!state)
+  {
+    analogWrite(SOLARIS::INNER_PWM_PIN, 0);
+    analogWrite(SOLARIS::MIDDLE_PWM_PIN, 0);
+    analogWrite(SOLARIS::OUTER_PWM_PIN, 0);
+    analogWrite(SOLARIS::EXTRA_PWM_PIN, handsValue(0));
+    writeStrip(innerStrip, innerCount, 0);
+    writeStrip(middleStrip, middleCount, 0);
+    writeStrip(outerStrip, outerCount, 0);
+    return;
   }
 
-  CrossFade(40 * p, true);
+  duration = max(duration, 1U);
+  const uint32_t elapsed = elapsedSinceCommand() % duration;
+  const float phase = 2.0f * PI * elapsed / duration;
+  const uint8_t inner = 128 - 127 * cosf(phase);
+  const uint8_t middle = 128 - 127 * cosf(phase + 2.0f * PI / 3.0f);
+  const uint8_t outer = 128 - 127 * cosf(phase + 4.0f * PI / 3.0f);
+  const uint8_t innerOutput = inner * bright / 255;
+  const uint8_t middleOutput = middle * bright / 255;
+  const uint8_t outerOutput = outer * bright / 255;
+
+  analogWrite(SOLARIS::INNER_PWM_PIN, innerOutput);
+  analogWrite(SOLARIS::MIDDLE_PWM_PIN, middleOutput);
+  analogWrite(SOLARIS::OUTER_PWM_PIN, outerOutput);
+  analogWrite(SOLARIS::EXTRA_PWM_PIN,
+              handsValue(SOLARIS::HANDS_MAX_BRIGHT * bright / 255));
+  writeStrip(innerStrip, innerCount, innerOutput);
+  writeStrip(middleStrip, middleCount, middleOutput);
+  writeStrip(outerStrip, outerCount, outerOutput);
 }
 
-
-void OnOff(boolean state) {
-
-  byte h = bright * HANDS_MAX_BRIGHT / 255;
-
-  analogWrite(INNER_PWM_PIN, bright * state);
-  analogWrite(MIDDLE_PWM_PIN, bright * state);
-  analogWrite(OUTER_PWM_PIN, bright * state);
-  analogWrite(HANDS_PWM_PIN, HandsValue(h * state));
-
-  pixelStripWrite(inner, bright * state);
-  pixelStripWrite(middle, bright * state);
-  pixelStripWrite(outer, bright * state);
+void SolarisClass::variableCrossFade(uint32_t duration, uint32_t interval)
+{
+  const uint32_t elapsed = elapsedSinceCommand();
+  uint32_t period = 1;
+  if (duration > elapsed && duration != 0)
+  {
+    period = interval - static_cast<uint32_t>(
+                              static_cast<uint64_t>(interval) * elapsed / duration);
+    period = max(period, 1U);
+  }
+  crossFade(40U * period, true);
 }
 
-void Breathe(int a, int b) {
-  byte breathe_bright;
+void SolarisClass::onOff(bool state)
+{
+  const uint8_t output = state ? bright : 0;
+  const uint8_t hands = bright * SOLARIS::HANDS_MAX_BRIGHT / 255U;
 
-  long t = (mil + mesh_millis_offset - start_millis);
+  analogWrite(SOLARIS::INNER_PWM_PIN, output);
+  analogWrite(SOLARIS::MIDDLE_PWM_PIN, output);
+  analogWrite(SOLARIS::OUTER_PWM_PIN, output);
+  analogWrite(SOLARIS::EXTRA_PWM_PIN, handsValue(state ? hands : 0));
+  writeStrip(innerStrip, innerCount, output);
+  writeStrip(middleStrip, middleCount, output);
+  writeStrip(outerStrip, outerCount, output);
+}
 
-  if (t <= a) {  // первый вздох
-    breathe_bright = 255 * t / a;
-  } else if (t <= (2 * a)) {  // первый выдох
-    breathe_bright = 255 - (t - a) * 255 / a;
-  } else if (t <= (3 * a)) {  // второй вздох
-    breathe_bright = 255 * (t - (2 * a)) / a;
-  } else if (t <= ((3 * a) + b)) {  // второй длинный выдох
-    breathe_bright = 255 - (t - (3 * a)) * 255 / b;
-  } else {  // после второго выдоха
-    breathe_bright = 0;
-    lastprogram = 0;
+void SolarisClass::breathe(uint32_t inhaleDuration, uint32_t exhaleDuration)
+{
+  inhaleDuration = max(inhaleDuration, 1U);
+  exhaleDuration = max(exhaleDuration, 1U);
+  const uint32_t elapsed = elapsedSinceCommand();
+  uint8_t level = 0;
+
+  if (elapsed <= inhaleDuration)
+  {
+    level = 255U * elapsed / inhaleDuration;
+  }
+  else if (elapsed <= 2U * inhaleDuration)
+  {
+    level = 255U - 255U * (elapsed - inhaleDuration) / inhaleDuration;
+  }
+  else if (elapsed <= 3U * inhaleDuration)
+  {
+    level = 255U * (elapsed - 2U * inhaleDuration) / inhaleDuration;
+  }
+  else if (elapsed <= 3U * inhaleDuration + exhaleDuration)
+  {
+    level = 255U - 255U * (elapsed - 3U * inhaleDuration) / exhaleDuration;
   }
 
-  analogWrite(INNER_PWM_PIN, bright * breathe_bright / 255);
-  analogWrite(MIDDLE_PWM_PIN, bright * breathe_bright / 255);
-  analogWrite(OUTER_PWM_PIN, bright * breathe_bright / 255);
-  analogWrite(HANDS_PWM_PIN, HandsValue(HANDS_MAX_BRIGHT * bright * breathe_bright / 65025));
-
-  pixelStripWrite(inner, bright * breathe_bright / 255);
-  pixelStripWrite(middle, bright * breathe_bright / 255);
-  pixelStripWrite(outer, bright * breathe_bright / 255);
+  const uint8_t output = bright * level / 255U;
+  analogWrite(SOLARIS::INNER_PWM_PIN, output);
+  analogWrite(SOLARIS::MIDDLE_PWM_PIN, output);
+  analogWrite(SOLARIS::OUTER_PWM_PIN, output);
+  analogWrite(SOLARIS::EXTRA_PWM_PIN,
+              handsValue(SOLARIS::HANDS_MAX_BRIGHT * output / 255U));
+  writeStrip(innerStrip, innerCount, output);
+  writeStrip(middleStrip, middleCount, output);
+  writeStrip(outerStrip, outerCount, output);
 }
 
-void BreatheSingle(int a, int b) {
-  byte breathe_bright;
+void SolarisClass::breatheSingle(uint32_t inhaleDuration, uint32_t exhaleDuration)
+{
+  inhaleDuration = max(inhaleDuration, 1U);
+  exhaleDuration = max(exhaleDuration, 1U);
+  const uint32_t elapsed = elapsedSinceCommand();
+  uint8_t level = 0;
 
-  long br = mil + mesh_millis_offset - start_millis;
-
-  if (br <= a) {  // Вдох
-    breathe_bright = 255 * br / a;
-  } else if (br <= (a + b)) {  // Выдох
-    breathe_bright = 255 - (br - a) * 255 / b;
-  } else {  // После выдоха
-    breathe_bright = 0;
+  if (elapsed <= inhaleDuration)
+  {
+    level = 255U * elapsed / inhaleDuration;
+  }
+  else if (elapsed <= inhaleDuration + exhaleDuration)
+  {
+    level = 255U - 255U * (elapsed - inhaleDuration) / exhaleDuration;
   }
 
-  analogWrite(INNER_PWM_PIN, bright * breathe_bright / 255);
-  analogWrite(MIDDLE_PWM_PIN, bright * breathe_bright / 255);
-  analogWrite(OUTER_PWM_PIN, bright * breathe_bright / 255);
-  analogWrite(HANDS_PWM_PIN, HandsValue(HANDS_MAX_BRIGHT * bright * breathe_bright / 65025));
-
-  pixelStripWrite(inner, bright * breathe_bright / 255);
-  pixelStripWrite(middle, bright * breathe_bright / 255);
-  pixelStripWrite(outer, bright * breathe_bright / 255);
+  const uint8_t output = bright * level / 255U;
+  analogWrite(SOLARIS::INNER_PWM_PIN, output);
+  analogWrite(SOLARIS::MIDDLE_PWM_PIN, output);
+  analogWrite(SOLARIS::OUTER_PWM_PIN, output);
+  analogWrite(SOLARIS::EXTRA_PWM_PIN,
+              handsValue(SOLARIS::HANDS_MAX_BRIGHT * output / 255U));
+  writeStrip(innerStrip, innerCount, output);
+  writeStrip(middleStrip, middleCount, output);
+  writeStrip(outerStrip , outerCount, output);
 }
 
-void BreatheHard(int a, int b) {
-  byte breathe_bright;
+void SolarisClass::breatheHard(uint32_t inhaleDuration, uint32_t exhaleDuration)
+{
+  inhaleDuration = max(inhaleDuration, 1U);
+  exhaleDuration = max(exhaleDuration, 1U);
+  const uint32_t elapsed = elapsedSinceCommand();
+  uint8_t level = 0;
 
-  long br_h = mil + mesh_millis_offset - start_millis;
-  if (br_h <= a) {  // Вдох
-    breathe_bright = 255 * br_h / a;
-    //    if (debug) Serial.println(bright);
-  } else if (br_h <= (a + b)) {  // Конец выдоха (1/(x+1-1/t)-t/(t-1))
-    float s = 4 * (br_h - a) / b;
-    breathe_bright = 127 * (2 - sqrt(s));
-    if (debug) {
-      Serial.print(br_h - a);
-      Serial.print(" - ");
-      Serial.print(s);
-      Serial.print(" - ");
-      Serial.println(bright);
-    }
-  } else {  // После выдоха
-    breathe_bright = 0;
+  if (elapsed <= inhaleDuration)
+  {
+    level = 255U * elapsed / inhaleDuration;
+  }
+  else if (elapsed <= inhaleDuration + exhaleDuration)
+  {
+    const float progress = 4.0f * (elapsed - inhaleDuration) / exhaleDuration;
+    level = constrain(static_cast<int>(127.0f * (2.0f - sqrtf(progress))), 0, 255);
   }
 
-  analogWrite(INNER_PWM_PIN, bright * breathe_bright / 255);
-  analogWrite(MIDDLE_PWM_PIN, bright * breathe_bright / 255);
-  analogWrite(OUTER_PWM_PIN, bright * breathe_bright / 255);
-  analogWrite(HANDS_PWM_PIN, HandsValue(HANDS_MAX_BRIGHT * bright * breathe_bright / 65025));
-
-  pixelStripWrite(inner, bright * breathe_bright / 255);
-  pixelStripWrite(middle, bright * breathe_bright / 255);
-  pixelStripWrite(outer, bright * breathe_bright / 255);
+  const uint8_t output = bright * level / 255U;
+  analogWrite(SOLARIS::INNER_PWM_PIN, output);
+  analogWrite(SOLARIS::MIDDLE_PWM_PIN, output);
+  analogWrite(SOLARIS::OUTER_PWM_PIN, output);
+  analogWrite(SOLARIS::EXTRA_PWM_PIN,
+              handsValue(SOLARIS::HANDS_MAX_BRIGHT * output / 255U));
+  writeStrip(innerStrip, innerCount, output);
+  writeStrip(middleStrip, middleCount, output);
+  writeStrip(outerStrip , outerCount, output);
 }
 
-void FadeParameter(byte startvalue, byte endvalue, int t) {
-  byte fade_bright;
-
-  unsigned long CurrentMillis = millis();
-  if (start_millis + t > CurrentMillis) {
-    if (startvalue < endvalue) {
-      fade_bright = startvalue + (endvalue - startvalue) * (CurrentMillis - start_millis) / t;
-    } else {
-      fade_bright = startvalue - (startvalue - endvalue) * (CurrentMillis - start_millis) / t;
-    }
-  } else {
-    fade_bright = endvalue;
+void SolarisClass::fadeParameter(uint8_t startValue, uint8_t endValue, uint32_t duration)
+{
+  const uint32_t elapsed = elapsedSinceCommand();
+  int32_t level = endValue;
+  if (duration != 0 && elapsed < duration)
+  {
+    level = static_cast<int32_t>(startValue) +
+            (static_cast<int32_t>(endValue) - startValue) * elapsed / duration;
   }
 
-  analogWrite(INNER_PWM_PIN, bright * fade_bright / 255);
-  analogWrite(MIDDLE_PWM_PIN, bright * fade_bright / 255);
-  analogWrite(OUTER_PWM_PIN, bright * fade_bright / 255);
-  analogWrite(HANDS_PWM_PIN, HandsValue(HANDS_MAX_BRIGHT * bright * fade_bright / 65025));
-
-  pixelStripWrite(inner, bright * fade_bright / 255);
-  pixelStripWrite(middle, bright * fade_bright / 255);
-  pixelStripWrite(outer, bright * fade_bright / 255);
+  const uint8_t output = bright * level / 255U;
+  analogWrite(SOLARIS::INNER_PWM_PIN, output);
+  analogWrite(SOLARIS::MIDDLE_PWM_PIN, output);
+  analogWrite(SOLARIS::OUTER_PWM_PIN, output);
+  analogWrite(SOLARIS::EXTRA_PWM_PIN,
+              handsValue(SOLARIS::HANDS_MAX_BRIGHT * output / 255U));
+  writeStrip(innerStrip, innerCount, output);
+  writeStrip(middleStrip, middleCount, output);
+  writeStrip(outerStrip , outerCount, output);
 }
 
-void FadeToStrobe(int t, unsigned long interval) {
-  int p;
-  unsigned long CurrentMillis = millis();
-  if (start_millis + t > CurrentMillis) {
-    p = interval - interval * (CurrentMillis - start_millis) / t;
-  } else {
-    p = 0;
+void SolarisClass::fadeToStrobe(uint32_t duration, uint32_t interval)
+{
+  const uint32_t elapsed = elapsedSinceCommand();
+  uint32_t period = 0;
+  if (duration > elapsed && duration != 0)
+  {
+    period = interval - static_cast<uint32_t>(
+                             static_cast<uint64_t>(interval) * elapsed / duration);
   }
-
-  Strobe(p, true);
+  strobe(period, true);
 }
 
-void Brightness(byte brightness) {
-  analogWrite(INNER_PWM_PIN, brightness * bright / 255);
-  analogWrite(MIDDLE_PWM_PIN, brightness * bright / 255);
-  analogWrite(OUTER_PWM_PIN, brightness * bright / 255);
-  analogWrite(HANDS_PWM_PIN, HandsValue(HANDS_MAX_BRIGHT * bright * brightness / 65025));
-
-  pixelStripWrite(inner, brightness * bright / 255);
-  pixelStripWrite(middle, brightness * bright / 255);
-  pixelStripWrite(outer, brightness * bright / 255);
+void SolarisClass::setBrightness(uint8_t brightness)
+{
+  const uint8_t output = brightness * bright / 255U;
+  analogWrite(SOLARIS::INNER_PWM_PIN, output);
+  analogWrite(SOLARIS::MIDDLE_PWM_PIN, output);
+  analogWrite(SOLARIS::OUTER_PWM_PIN, output);
+  analogWrite(SOLARIS::EXTRA_PWM_PIN,
+              handsValue(SOLARIS::HANDS_MAX_BRIGHT * bright * brightness / 65025U));
+  writeStrip(innerStrip, innerCount, output);
+  writeStrip(middleStrip, middleCount, output);
+  writeStrip(outerStrip , outerCount, output);
 }
 
-void pixelStripWrite(Adafruit_NeoPixel &strip, uint8_t brightness) {
-  strip.fill(strip.Color(brightness, brightness, brightness), 0, strip.numPixels());
-}
-
-uint8_t HandsValue(uint8_t input) {
-  uint8_t output = map(input, 0, 255, 255, 0);
-  return output;
+uint8_t SolarisClass::handsValue(uint8_t input) const
+{
+  return 255U - input;
 }
 
 SolarisClass Solaris;
