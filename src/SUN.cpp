@@ -494,7 +494,7 @@ void SUNClass::executeCommand(uint8_t nodeNumber)
     if (nodeNumber == 255)
     {
         Serial.printf("No specific command execution for node %d\n", nodeNumber);
-        break;
+        return;
     }
     else if (nodeNumber >= 10 && nodeNumber < 20)
     {
