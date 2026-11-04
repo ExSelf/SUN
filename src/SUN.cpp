@@ -502,7 +502,7 @@ void SUNClass::parseReceviedData(const uint8_t *mac_addr, const uint8_t *incomin
 
     if (len != (int)sizeof(Packet))
     {
-        Serial.printf("ESP-NOW RX incorrect: %d (need %u)\n", len, (unsigned int)sizeof(Packet));
+        // Serial.printf("ESP-NOW RX incorrect: %d (need %u)\n", len, (unsigned int)sizeof(Packet));
         return;
     }
 
@@ -511,7 +511,7 @@ void SUNClass::parseReceviedData(const uint8_t *mac_addr, const uint8_t *incomin
 
     if (!hasValidPacketAuthTag(receivedPacket))
     {
-        Serial.println("ESP-NOW RX rejected: authentication failed");
+        // Serial.println("ESP-NOW RX rejected: authentication failed");
         return;
     }
 
