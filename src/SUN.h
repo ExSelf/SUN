@@ -1,5 +1,6 @@
 #pragma once
 #include <Arduino.h>
+#include <stddef.h>
 #include <stdint.h>
 #include "secrets.h"
 
@@ -70,15 +71,32 @@ public:
 
         uint8_t constantCommands[12];
 
-        uint16_t voltage;
-        uint8_t charge;
+        union __attribute__((packed))
+        {
+            struct __attribute__((packed))
+            {
+                uint16_t voltage;
+                uint8_t charge;
+            } status;
+            struct __attribute__((packed))
+            {
+                uint8_t flags;
+                uint16_t constantCommandMask;
+            } command;
+        } metadata;
 
-        uint8_t subnodes[64];
-        uint8_t reserved[158];
+        uint8_t targetBitmap[32];
+        uint8_t reserved[182];
+        uint8_t authTag[8];
 
     } Packet;
 
     static_assert(sizeof(Packet) == 250, "SPACE packet layout must be 250 bytes");
+    static_assert(offsetof(Packet, targetBitmap) == 28, "Target bitmap offset must be 28");
+    static_assert(offsetof(Packet, authTag) == 242, "Authentication tag offset must be 242");
+
+    static constexpr uint8_t COMMAND_UPDATE_STATE = 0x01;
+    static constexpr uint8_t COMMAND_UPDATE_CONSTANTS = 0x02;
 
     uint16_t getVoltageIndexer(uint8_t nodeNumber);
     void setNodeCommand(uint8_t nodeNumber, uint8_t command, uint8_t parameter, uint8_t constantParameters[12]);

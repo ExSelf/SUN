@@ -20,12 +20,67 @@
 
 #include "SUN.h"
 #include "string.h"
+#include <stddef.h>
+#include <mbedtls/md.h>
+
+#ifndef SUN_PACKET_HMAC_KEY
+#error "Define SUN_PACKET_HMAC_KEY in src/secrets.h"
+#endif
 
 // Create global instance
 SUNClass SUN;
 SUNClass::Packet packet;
 
 constexpr const uint8_t SUNClass::NodeNumberPins[8];
+
+static constexpr size_t AUTH_TAG_SIZE = 8;
+static constexpr size_t AUTHENTICATED_PACKET_SIZE = offsetof(SUNClass::Packet, authTag);
+static_assert(sizeof(SUNClass::Packet::authTag) == AUTH_TAG_SIZE, "HMAC tag must be 8 bytes");
+
+static bool calculatePacketAuthTag(const uint8_t *data, uint8_t *authTag)
+{
+    static const char key[] = SUN_PACKET_HMAC_KEY;
+    static_assert(sizeof(key) - 1 >= 32, "SUN_PACKET_HMAC_KEY must be at least 32 characters");
+
+    const mbedtls_md_info_t *sha256 = mbedtls_md_info_from_type(MBEDTLS_MD_SHA256);
+    uint8_t digest[32];
+    if (sha256 == nullptr ||
+        mbedtls_md_hmac(sha256,
+                        reinterpret_cast<const unsigned char *>(key),
+                        sizeof(key) - 1,
+                        data,
+                        AUTHENTICATED_PACKET_SIZE,
+                        digest) != 0)
+    {
+        return false;
+    }
+
+    memcpy(authTag, digest, AUTH_TAG_SIZE);
+    return true;
+}
+
+static bool hasValidPacketAuthTag(const SUNClass::Packet &packet)
+{
+    uint8_t expected[AUTH_TAG_SIZE];
+    if (!calculatePacketAuthTag(reinterpret_cast<const uint8_t *>(&packet), expected))
+    {
+        return false;
+    }
+
+    uint8_t difference = 0;
+    for (size_t i = 0; i < AUTH_TAG_SIZE; ++i)
+    {
+        difference |= expected[i] ^ packet.authTag[i];
+    }
+    return difference == 0;
+}
+
+static bool finalizePacket(SUNClass::Packet &packet)
+{
+    return calculatePacketAuthTag(
+        reinterpret_cast<const uint8_t *>(&packet),
+        packet.authTag);
+}
 
 uint16_t SUNClass::getVoltageIndexer(uint8_t nodeNumber)
 {
@@ -332,8 +387,8 @@ void SUNClass::sendStatus(uint8_t nodeNumber)
     packet.globalTime = SUN.getGlobalTime();
     packet.commandTimestamp = startMillis;
 
-    packet.voltage = voltage;
-    packet.charge = charge;
+    packet.metadata.status.voltage = voltage;
+    packet.metadata.status.charge = charge;
 
     packet.command = command;
     packet.parameter = parameter;
@@ -342,6 +397,12 @@ void SUNClass::sendStatus(uint8_t nodeNumber)
     memcpy(packet.constantCommands,
            constantCommands,
            sizeof(packet.constantCommands));
+
+    if (!finalizePacket(packet))
+    {
+        Serial.println("Status packet authentication failed");
+        return;
+    }
 
     if (SUN.sendMessage(reinterpret_cast<const uint8_t *>(&packet), sizeof(packet)))
     {
@@ -448,12 +509,45 @@ void SUNClass::parseReceviedData(const uint8_t *mac_addr, const uint8_t *incomin
     Packet receivedPacket{};
     memcpy(&receivedPacket, incomingData, sizeof(Packet));
 
-    // Read and apply fields from received packet.
+    if (!hasValidPacketAuthTag(receivedPacket))
+    {
+        Serial.println("ESP-NOW RX rejected: authentication failed");
+        return;
+    }
+
+    if (receivedPacket.type != 1 || receivedPacket.ttl == 0 || receivedPacket.ttl > 12 ||
+        (receivedPacket.metadata.command.flags &
+         ~(COMMAND_UPDATE_STATE | COMMAND_UPDATE_CONSTANTS)) != 0 ||
+        (receivedPacket.metadata.command.constantCommandMask & 0xF000) != 0)
+    {
+        return;
+    }
+
+    const uint8_t targetByte = nodeNumber / 8;
+    const uint8_t targetMask = (uint8_t)(1U << (nodeNumber % 8));
+    if ((receivedPacket.targetBitmap[targetByte] & targetMask) == 0)
+    {
+        return;
+    }
+
+    // The target node uses the packet timestamp as its receipt acknowledgement.
     TTL = receivedPacket.ttl;
     startMillis = receivedPacket.commandTimestamp;
-    command = receivedPacket.command;
-    parameter = receivedPacket.parameter;
-    memcpy(constantCommands, receivedPacket.constantCommands, sizeof(constantCommands));
+    if (receivedPacket.metadata.command.flags & COMMAND_UPDATE_STATE)
+    {
+        command = receivedPacket.command;
+        parameter = receivedPacket.parameter;
+    }
+    if (receivedPacket.metadata.command.flags & COMMAND_UPDATE_CONSTANTS)
+    {
+        for (uint8_t i = 0; i < sizeof(constantCommands); ++i)
+        {
+            if (receivedPacket.metadata.command.constantCommandMask & (1U << i))
+            {
+                constantCommands[i] = receivedPacket.constantCommands[i];
+            }
+        }
+    }
 
     if (globalTimeOffset < receivedPacket.globalTime - millis())
     {
@@ -463,12 +557,14 @@ void SUNClass::parseReceviedData(const uint8_t *mac_addr, const uint8_t *incomin
 
     // Handle WiFi/OTA control via constantCommands[0]
     // Only trigger on command change to avoid repeated calls
-    if (receivedPacket.constantCommands[0] != lastWiFiCommand)
+    if ((receivedPacket.metadata.command.flags & COMMAND_UPDATE_CONSTANTS) &&
+        (receivedPacket.metadata.command.constantCommandMask & 1U) &&
+        constantCommands[0] != lastWiFiCommand)
     {
-        lastWiFiCommand = receivedPacket.constantCommands[0];
-        bool shouldEnable = (receivedPacket.constantCommands[0] != 0);
+        lastWiFiCommand = constantCommands[0];
+        bool shouldEnable = (constantCommands[0] != 0);
         enableWiFiOTA(shouldEnable);
-        Serial.printf("WiFi/OTA %s via command: %u\n", shouldEnable ? "enabled" : "disabled", receivedPacket.constantCommands[0]);
+        Serial.printf("WiFi/OTA %s via command: %u\n", shouldEnable ? "enabled" : "disabled", constantCommands[0]);
     }
 
 }
